@@ -33,11 +33,6 @@ public class CitaServiceImpl implements CitaService{
     private final PacienteClient pacienteClient;
 
     //Constantes - enum Estado Cita
-    private static final Long ID_DISPONIBILIDAD_DISPONIBLE = 1L;
-    private static final Long ID_DISPONIBILIDAD_EN_CONSULTA = 2L;
-    private static final Long ID_DISPONIBILIDAD_AGENDADO = 5L;
-
-
     private static final List<EstadoCita> ESTADOS_PERMITIDOS_PCEC = List.of(
             EstadoCita.PENDIENTE, EstadoCita.CONFIRMADA, EstadoCita.EN_CURSO
     );
@@ -165,10 +160,14 @@ public class CitaServiceImpl implements CitaService{
 
         citaRepository.save(cita);
 
+        Long codigo = cita.getEstadoCita().getCodigo();
+
         if (cita.getEstadoCita() == EstadoCita.PENDIENTE
                 && !tieneCitasActivas(cita.getIdMedico(), ESTADOS_PERMITIDOS_PCEC, EstadoRegistro.ACTIVO)) {
 
-            medicoClient.actualizarDisponibilidadMedico(cita.getIdMedico(), ID_DISPONIBILIDAD_DISPONIBLE);
+            Long idDisponibilidad = EstadoCita.obtenerEstadoCitaPorCodigo(codigo).getCodigo();
+
+            medicoClient.actualizarDisponibilidadMedico(cita.getIdMedico(), idDisponibilidad);
             log.info("Médico id: {} liberado a DISPONIBLE tras eliminación de cita pendiente.", cita.getIdMedico());
         }
 
@@ -244,16 +243,16 @@ public class CitaServiceImpl implements CitaService{
         }
 
         return switch (estadoCita) {
-            case PENDIENTE, CONFIRMADA -> ID_DISPONIBILIDAD_AGENDADO;
-            case EN_CURSO              -> ID_DISPONIBILIDAD_EN_CONSULTA;
-            case FINALIZADA, CANCELADA -> ID_DISPONIBILIDAD_DISPONIBLE;
+            case PENDIENTE, CONFIRMADA -> EstadoCita.PENDIENTE.getCodigo();  // 1L
+            case EN_CURSO              -> EstadoCita.CONFIRMADA.getCodigo(); // 2L
+            case FINALIZADA, CANCELADA -> EstadoCita.FINALIZADA.getCodigo(); // 4L
         };
     }
 
     private void sincronizarDisponibilidadMedico(Long idCita, Long idMedico, EstadoCita estadoCita) {
         Long idDisponibilidad = obtenerIdDisponibilidadResultante(estadoCita);
 
-        if (ID_DISPONIBILIDAD_DISPONIBLE.equals(idDisponibilidad)
+        if (EstadoCita.FINALIZADA.getCodigo().equals(idDisponibilidad)
                 && tieneOtrasCitasActivas(idMedico, ESTADOS_PERMITIDOS_PCEC, EstadoRegistro.ACTIVO, idCita)) {
 
             log.info("El médico id: {} aún cuenta con otras citas activas. Permanecerá NO_DISPONIBLE.", idMedico);
