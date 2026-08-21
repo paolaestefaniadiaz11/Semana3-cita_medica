@@ -1,15 +1,14 @@
 package com.example.citas.entity;
 
 import com.example.citas.enums.EstadoCita;
-import com.paola.commons.enums.EspecialidadMedico;
 import com.paola.commons.enums.EstadoRegistro;
 import com.paola.commons.utils.StringCustomUtils;
 import com.paola.commons.utils.ValoresNumericosUtils;
 import jakarta.persistence.*;
 import lombok.*;
 
-import javax.swing.*;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "CITAS")
@@ -37,7 +36,8 @@ public class Cita {
     @Column(name = "SINTOMAS", length = 500, nullable = false)
     private String sintomas;
 
-    @Column(name = "ESTADO_CITAS",nullable = false)
+    @Column(name = "ESTADO_CITA",nullable = false)
+    @Enumerated(EnumType.STRING)
     private EstadoCita estadoCita;
 
     @Enumerated(EnumType.STRING)
@@ -76,15 +76,25 @@ public class Cita {
 
     public void validarEliminacionPermitida(){
         validarNoEliminado();
-        if (!estadoCita.isActualizable())
-            throw new IllegalArgumentException("La cita con estado"+estadoCita+"no puede actualizarse");
+        boolean esEstadoPermitido = List.of(
+                EstadoCita.PENDIENTE,
+                EstadoCita.CANCELADA,
+                EstadoCita.FINALIZADA
+        ).contains(this.estadoCita);
 
+        if (!esEstadoPermitido) {
+            throw new IllegalStateException(
+                    "La cita con estado " + this.estadoCita + " no puede ser eliminada. Solo se permite en PENDIENTE, CANCELADA o FINALIZADA."
+            );
+        }
+        if (!estadoCita.isEliminable())
+            throw new IllegalArgumentException("La cita con estado"+estadoCita+"no puede eliminarse");
     }
 
     public void validarActualizacionPermitida(){
         validarNoEliminado();
-        if (!estadoCita.isEliminable())
-            throw new IllegalArgumentException("La cita con estado "+estadoCita+" no puede eliminarse");
+        if (!estadoCita.isActualizable())
+            throw new IllegalArgumentException("La cita con estado "+estadoCita+" no puede actualizarse");
 
     }
 
@@ -110,7 +120,7 @@ public class Cita {
 
     public void actualizarEstadoCita(EstadoCita nuevoEstado){
 
-        validarActualizacionPermitida();
+        validarNoEliminado();
 
         if(nuevoEstado == null)
             throw new IllegalArgumentException("El nuevo estado de la cita es requerido");
@@ -137,5 +147,6 @@ public class Cita {
         .estadoRegistro(EstadoRegistro.ACTIVO)
         .build();
     }
+
 }
 

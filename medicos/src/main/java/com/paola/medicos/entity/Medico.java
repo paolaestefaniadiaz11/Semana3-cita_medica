@@ -91,7 +91,6 @@ public class Medico {
         if (especialidad == null)
             throw new IllegalArgumentException("La especialidad es requeridaentiti");
 
-
     }
 
 
@@ -148,6 +147,9 @@ public class Medico {
 
     }
 
+    public void forzarDisponibilidad(DisponibilidadMedico nuevaDisponibilidad) {
+        this.disponibilidad = nuevaDisponibilidad;
+    }
 
 
 

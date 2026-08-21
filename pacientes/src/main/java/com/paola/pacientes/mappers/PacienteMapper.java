@@ -23,7 +23,6 @@ public class PacienteMapper implements CommonMapper<PacienteRequest, PacienteRes
                 .edad(request.edad())
                 .peso(request.peso())
                 .estatura(request.estatura())
-                //.imc(request.calcularImc())
                 .email(request.email().toLowerCase().trim())
                 .telefono(request.telefono().trim())
                 .direccion(request.direccion().trim())

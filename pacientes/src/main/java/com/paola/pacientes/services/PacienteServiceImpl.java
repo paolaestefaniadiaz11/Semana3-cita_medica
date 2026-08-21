@@ -46,28 +46,30 @@ public class PacienteServiceImpl implements PacienteService{
 
     @Override
     public PacienteResponse registrar(PacienteRequest request) {
-        log.info("Registrando nuevo medico: {}",request.nombre());
+        log.info("Registrando nuevo paciente: {}", request.nombre());
 
         validarDatosUnicos(request);
 
-        Paciente paciente =  pacienteMapper.requestAEntidad(request);
+        Paciente paciente = pacienteMapper.requestAEntidad(request);
 
-        pacienteRepository.save(paciente);
+        paciente.calcularImc();
+        paciente.generarNumeroExpediente();
+
+        paciente = pacienteRepository.save(paciente);
 
         return pacienteMapper.entidadAResponse(paciente);
-
     }
 
     @Override
+    @Transactional
     public PacienteResponse actualizar(PacienteRequest request, Long id) {
+        log.info("Actualizar paciente con id: {}", id);
 
         Paciente paciente = obtenerPacienteActivoOException(id);
 
-        log.info("Actualizar paciente con id: {}",id);
-
         validarSinCitasActivas(id);
 
-        validarCambiosUnicos(request,id);
+        validarCambiosUnicos(request, id);
 
         paciente.actualizar(
                 request.nombre(),
@@ -78,10 +80,10 @@ public class PacienteServiceImpl implements PacienteService{
                 request.estatura(),
                 request.email(),
                 request.telefono(),
-                request.direccion());
+                request.direccion()
+        );
 
-        log.info("Paciente actualizado exitosamente");
-
+        log.info("Paciente con id: {} actualizado exitosamente", id);
         return pacienteMapper.entidadAResponse(paciente);
 
     }
@@ -99,16 +101,13 @@ public class PacienteServiceImpl implements PacienteService{
 
     @Override
     public PacienteResponse obtenerPacientePorIdSinEstado(Long id) {
-        return null;
+        log.info("Listando paciente sin estado con id:{}",id);
+
+        return pacienteMapper.entidadAResponse(pacienteRepository.findById(id)
+                .orElseThrow(()-> new RecursoNoEncontradoException("Recurso no encontrado con id: "+id)));
+
     }
 
-
-    private Paciente obtenerPacienteOException(Long id){
-        log.info("Buscando paciente con id {} ...",id);
-
-        return pacienteRepository.findById(id).orElseThrow(()->
-                new RecursoNoEncontradoException("Paciente no encontrado con id: "+id));
-    }
 
     private Paciente obtenerPacienteActivoOException(Long id){
         log.info("Listando pacientes con estado ACTIVO");
@@ -150,12 +149,12 @@ public class PacienteServiceImpl implements PacienteService{
     }
 
     private void validarSinCitasActivas(Long idPaciente) {
-        Boolean tieneCitas = citaClient.tieneCitasActivas(idPaciente);
+        log.info("Validando que el paciente tenga citas en CONFIRMADA O EN_CURSO...");
+        Boolean tieneCitas = citaClient.tieneCitasActivasPaciente(idPaciente);
 
-        if (Boolean.TRUE.equals(tieneCitas)) {
-            log.info("No se puede modificar/eliminar el paciente id: {} porque tiene citas en estado CONFIRMADA o EN_CURSO", idPaciente);
+        if (Boolean.TRUE.equals(tieneCitas))
             throw new IllegalArgumentException("No se puede actualizar ni eliminar el paciente porque tiene citas en estado CONFIRMADA o EN_CURSO.");
-        }
+
     }
 
 }
