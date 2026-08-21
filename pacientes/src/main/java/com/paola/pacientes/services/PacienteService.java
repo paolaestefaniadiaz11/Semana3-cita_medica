@@ -1,6 +1,5 @@
 package com.paola.pacientes.services;
 
-import com.paola.commons.dto.medico.MedicoResponse;
 import com.paola.commons.dto.paciente.PacienteRequest;
 import com.paola.commons.dto.paciente.PacienteResponse;
 import com.paola.commons.services.CrudService;

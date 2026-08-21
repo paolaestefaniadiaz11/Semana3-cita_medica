@@ -151,25 +151,32 @@ public class Paciente {
 
     public Double calcularImc() {
         if (this.peso == null || this.estatura == null || this.estatura <= 0) {
+            this.imc = null;
             return null;
         }
         double resultado = this.peso / Math.pow(this.estatura, 2);
 
-        return BigDecimal.valueOf(resultado)
+        this.imc = BigDecimal.valueOf(resultado)
                 .setScale(2, RoundingMode.HALF_UP)
                 .doubleValue();
+
+        return this.imc;
     }
 
     public String generarNumeroExpediente() {
         if (this.telefono == null || this.telefono.isBlank()) {
+            this.numExpediente = "";
             return "";
         }
         StringBuilder expediente = new StringBuilder();
         for (char digito : this.telefono.trim().toCharArray()) {
             expediente.append(digito).append('X');
         }
-        return expediente.toString();
+        this.numExpediente = expediente.toString();
+
+        return this.numExpediente;
     }
+
 
 
 

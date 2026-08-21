@@ -15,18 +15,18 @@ public enum EstadoCita {
     PENDIENTE(1L,"Pendiente de confirmar",true,true) {
         @Override
         public Set<EstadoCita> puedeCambiar() {
-            return EnumSet.of(CORNFIRMADA, CANCELADA);
+            return EnumSet.of(CONFIRMADA, CANCELADA);
         }
     },
 
-    CORNFIRMADA(2L,"Confirmada por el paciente",true,false) {
+    CONFIRMADA(2L,"Confirmada por el paciente",true,false) {
         @Override
         public Set<EstadoCita> puedeCambiar() {
             return EnumSet.of(EN_CURSO, CANCELADA);
         }
     },
 
-    EN_CURSO(3L, "Paciente llago a su cita",true, false) {
+    EN_CURSO(3L, "Paciente llego a su cita",true, false) {
         @Override
         public Set<EstadoCita> puedeCambiar() {
             return EnumSet.of(FINALIZADA);
@@ -56,6 +56,14 @@ public enum EstadoCita {
 
     public boolean puedeCambiarA(EstadoCita nuevoEstado){
         return puedeCambiar().contains(nuevoEstado);
+    }
+
+    public Long obtenerIdDisponibilidadResultante() {
+        return switch (this) {
+            case PENDIENTE, CONFIRMADA -> 5L;
+            case EN_CURSO              -> 2L;
+            case FINALIZADA, CANCELADA -> 1L;
+        };
     }
 
     public static EstadoCita obtenerEstadoCitaPorCodigo(Long codigo){

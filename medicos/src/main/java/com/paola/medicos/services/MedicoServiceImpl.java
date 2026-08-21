@@ -1,5 +1,6 @@
 package com.paola.medicos.services;
 
+import com.paola.commons.client.CitaClient;
 import com.paola.commons.dto.medico.MedicoRequest;
 import com.paola.commons.dto.medico.MedicoResponse;
 import com.paola.commons.enums.DisponibilidadMedico;
@@ -25,6 +26,8 @@ public class MedicoServiceImpl implements MedicoService {
     private final MedicoRepository medicoRepository;
 
     private final MedicoMapper medicoMapper;
+
+    private final CitaClient citaClient;
 
 
     @Override
@@ -75,13 +78,25 @@ public class MedicoServiceImpl implements MedicoService {
     @Override
     public void actualizarDisponibilidadMedico(Long idMedico, Long idDisponibilidad) {
 
-        Medico medico = obtenerMedicoActivoOException(idMedico);
-
         log.info("Actualizando disponibilidad del medico con id: {}",idMedico);
+
+        Medico medico = obtenerMedicoActivoOException(idMedico);
 
         DisponibilidadMedico nuevaDisponibilidad = DisponibilidadMedico.obtenerDisponibilidadPorCodigo(idDisponibilidad);
 
         DisponibilidadMedico disponibilidadAnterior = medico.getDisponibilidad();
+
+        if (disponibilidadAnterior == nuevaDisponibilidad)
+            log.info("El médico con id {} ya tiene la disponibilidad {}", idMedico, nuevaDisponibilidad);
+            //return;
+
+        if (nuevaDisponibilidad == DisponibilidadMedico.DISPONIBLE) {
+            Boolean tieneCitas = citaClient.tieneCitasActivasMedico(idMedico);
+            if (Boolean.TRUE.equals(tieneCitas)) {
+                log.info("No se puede cambiar a DISPONIBLE el médico {} porque tiene citas activas", idMedico);
+                throw new IllegalArgumentException("No se puede cambiar la disponibilidad a DISPONIBLE porque el médico tiene citas en estado CONFIRMADA o EN_CURSO.");
+            }
+        }
 
         medico.actualizarDisponibilidad(nuevaDisponibilidad);
 
@@ -95,6 +110,8 @@ public class MedicoServiceImpl implements MedicoService {
         Medico medico = obtenerMedicoActivoOException(id);
 
         log.info("Actualizar medico con id: {}",id);
+
+        validarSinCitasActivas(id);
 
         validarCambiosUnicos(request,id);
 
@@ -118,10 +135,25 @@ public class MedicoServiceImpl implements MedicoService {
 
         Medico medico = obtenerMedicoActivoOException(id);
 
+        validarSinCitasActivas(id);
+
         log.info("Eliminando medico con id: {}",id);
 
         medico.eliminar();
 
+    }
+
+    @Override
+    @Transactional
+    public void sincronizarDisponibilidadInterna(Long idMedico, Long idDisponibilidad) {
+        log.info("Sincronizando disponibilidad interna para médico id: {} a estado: {}", idMedico, idDisponibilidad);
+
+        Medico medico = obtenerMedicoActivoOException(idMedico);
+        DisponibilidadMedico nuevaDisponibilidad = DisponibilidadMedico.obtenerDisponibilidadPorCodigo(idDisponibilidad);
+
+        medico.forzarDisponibilidad(nuevaDisponibilidad);
+
+        medicoRepository.save(medico);
     }
 
     private Medico obtenerMedicoActivoOException(Long id){
@@ -171,6 +203,14 @@ public class MedicoServiceImpl implements MedicoService {
             throw new IllegalArgumentException("Ya existe un medico activo registrado con la cedula profesional: "+request.cedulaProfesional());
     }
 
+    private void validarSinCitasActivas(Long idMedico) {
+        Boolean tieneCitas = citaClient.tieneCitasActivasMedico(idMedico);
+
+        if (Boolean.TRUE.equals(tieneCitas)) {
+            log.warn("No se puede modificar/eliminar el médico id: {} porque tiene citas CONFIRMADA o EN_CURSO", idMedico);
+            throw new IllegalArgumentException("No se puede actualizar ni eliminar el médico porque tiene citas activas en estado CONFIRMADA o EN_CURSO.");
+        }
+    }
 
 
 

@@ -29,15 +29,24 @@ public class MedicoController extends CommonController<MedicoRequest, MedicoResp
             return  ResponseEntity.ok(service.obtenerMedicoPorIdSinEstado(id));
         }
 
-        @PutMapping("/{idMedico}/disponibilidad/{idDisponibilidad}")
-        public ResponseEntity<Void> actualizarDisponibilidadMedico(
-                @PathVariable @Positive (message = "El idMedico debe ser positivo") Long idMedico,
-                @PathVariable @Positive (message = "El idDisponibilidad debe ser positivo") Long idDisponibilidad){
 
-                service.actualizarDisponibilidadMedico(idMedico,idDisponibilidad);
+    @PutMapping("/{idMedico}/disponibilidad/{idDisponibilidad}")
+    public ResponseEntity<Void> actualizarDisponibilidadMedico(
+            @PathVariable("idMedico") Long idMedico,
+            @PathVariable("idDisponibilidad") Long idDisponibilidad) {
+        service.actualizarDisponibilidadMedico(idMedico, idDisponibilidad);
+        return ResponseEntity.noContent().build();
+    }
 
-                return ResponseEntity.noContent().build();
-        }
+    @PutMapping("/{idMedico}/disponibilidad-interna/{idDisponibilidad}")
+    public ResponseEntity<Void> sincronizarDisponibilidadInterna(
+            @PathVariable("idMedico") Long idMedico,
+            @PathVariable("idDisponibilidad") Long idDisponibilidad) {
+        service.sincronizarDisponibilidadInterna(idMedico, idDisponibilidad);
+        return ResponseEntity.noContent().build();
+    }
+
+
 
 
 }

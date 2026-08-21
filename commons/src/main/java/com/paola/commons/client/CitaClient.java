@@ -1,6 +1,5 @@
 package com.paola.commons.client;
-
-import com.paola.commons.dto.paciente.PacienteResponse;
+import com.paola.commons.dto.cita.CitaResponse;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -9,5 +8,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 public interface CitaClient {
 
     @GetMapping("/paciente/{idPaciente}/tiene-citas-activas")
-    Boolean tieneCitasActivas(@PathVariable("idPaciente") Long idPaciente);
+    Boolean tieneCitasActivasPaciente(@PathVariable("idPaciente") Long idPaciente);
+
+    @GetMapping("/medico/{idMedico}/tiene-citas-activas")
+    Boolean tieneCitasActivasMedico(@PathVariable("idMedico") Long idMedico);
+
+
 }
+

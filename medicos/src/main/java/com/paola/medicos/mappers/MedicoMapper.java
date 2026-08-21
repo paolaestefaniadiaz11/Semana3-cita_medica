@@ -26,7 +26,6 @@ public class MedicoMapper implements CommonMapper<MedicoRequest, MedicoResponse,
                 .cedulaProfesional(request.cedulaProfesional().trim())
                 .disponibilidad(DisponibilidadMedico.DISPONIBLE)
                 .estadoRegistro(EstadoRegistro.ACTIVO)
-
                 .build();
 
     }

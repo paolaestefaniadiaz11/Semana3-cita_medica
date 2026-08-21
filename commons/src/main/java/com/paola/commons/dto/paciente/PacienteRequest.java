@@ -31,9 +31,6 @@ public record PacienteRequest(
         @DecimalMax(value = "2.0", message = "La estatura máxima es 2.0 m")
         Double estatura,
 
-        @NotNull(message = "El imc es obligatorio")
-        Double imc,
-
         @NotBlank(message = "El email es obligatorio")
         @Email(message = "El formato del email no es válido")
         @Size(min = 1,max = 100, message = "El email no puede exceder 100 caracteres")

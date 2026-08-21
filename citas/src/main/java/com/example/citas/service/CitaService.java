@@ -5,4 +5,13 @@ import com.paola.commons.services.CrudService;
 
 public interface CitaService extends CrudService<CitaRequest, CitaResponse> {
     void actualizarEstadoCita(Long idCita,Long idEstadoCita);
+
+    boolean tieneCitasActivasPaciente(Long idPaciente);
+
+    boolean tieneCitasActivasMedico(Long idMedico);
+
+    boolean verificarDisponibilidadMedico(Long idMedico);
+
 }
+
+
