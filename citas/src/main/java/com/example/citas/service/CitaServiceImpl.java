@@ -201,7 +201,7 @@ public class CitaServiceImpl implements CitaService{
     private MedicoResponse obtenerMedicoActivo(Long id){
         log.info("Buscando medico activo con id {} en el servicio remoto...",id);
 
-    return medicoClient.obtenerMedicoActivoPorId(id);
+        return medicoClient.obtenerMedicoActivoPorId(id);
     }
 
     private PacienteResponse obtenerPacienteActivo(Long id){
@@ -213,7 +213,7 @@ public class CitaServiceImpl implements CitaService{
     private MedicoResponse obtenerMedicoSinEstado(Long id){
         log.info("Buscando medico sin activo con id {} en el servicio remoto...",id);
 
-    return medicoClient.obtenerMedicoPorIdSinEstado(id);
+        return medicoClient.obtenerMedicoPorIdSinEstado(id);
     }
 
 
@@ -259,7 +259,7 @@ public class CitaServiceImpl implements CitaService{
             return;
         }
 
-        log.info("Sincronizando disponibilidad del médico id: {} a disponibilidad id: {} por cita en estado: {}",
+        log.info("Sincronizando la disponibilidad del médico id: {} a disponibilidad id: {} por cita en estado: {}",
                 idMedico, idDisponibilidad, estadoCita);
 
         medicoClient.actualizarDisponibilidadMedico(idMedico, idDisponibilidad);
