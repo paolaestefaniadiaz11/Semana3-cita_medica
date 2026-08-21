@@ -58,14 +58,6 @@ public enum EstadoCita {
         return puedeCambiar().contains(nuevoEstado);
     }
 
-    public Long obtenerIdDisponibilidadResultante() {
-        return switch (this) {
-            case PENDIENTE, CONFIRMADA -> 5L;
-            case EN_CURSO              -> 2L;
-            case FINALIZADA, CANCELADA -> 1L;
-        };
-    }
-
     public static EstadoCita obtenerEstadoCitaPorCodigo(Long codigo){
 
         for (EstadoCita ec: values()){

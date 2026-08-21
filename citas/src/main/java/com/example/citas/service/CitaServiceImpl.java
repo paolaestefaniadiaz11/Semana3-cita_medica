@@ -32,6 +32,19 @@ public class CitaServiceImpl implements CitaService{
     private final CitaClient citaClient;
     private final PacienteClient pacienteClient;
 
+    //Constantes - enum Estado Cita
+    private static final Long ID_DISPONIBILIDAD_DISPONIBLE = 1L;
+    private static final Long ID_DISPONIBILIDAD_EN_CONSULTA = 2L;
+    private static final Long ID_DISPONIBILIDAD_AGENDADO = 5L;
+
+
+    private static final List<EstadoCita> ESTADOS_PERMITIDOS_PCEC = List.of(
+            EstadoCita.PENDIENTE, EstadoCita.CONFIRMADA, EstadoCita.EN_CURSO
+    );
+
+    private static final List<EstadoCita> ESTADOS_PERMITIDOS_CEC =
+            List.of(EstadoCita.CONFIRMADA, EstadoCita.EN_CURSO);
+
 
     @Override
     @Transactional(readOnly = true)
@@ -108,8 +121,9 @@ public class CitaServiceImpl implements CitaService{
 
         boolean cambioDeMedico = !idMedicoAnterior.equals(idNuevoMedico);
         if (cambioDeMedico) {
-
             validarMedicoDisponible(idNuevoMedico);
+
+            sincronizarDisponibilidadMedico(cita.getId(), idNuevoMedico, cita.getEstadoCita());
         }
 
         cita.actualizar(
@@ -119,13 +133,6 @@ public class CitaServiceImpl implements CitaService{
                 request.sintomas()
         );
         citaRepository.saveAndFlush(cita);
-
-        if (cambioDeMedico) {
-
-            sincronizarDisponibilidadMedico(cita.getId(), idNuevoMedico, cita.getEstadoCita());
-
-            sincronizarDisponibilidadMedico(cita.getId(), idMedicoAnterior, EstadoCita.FINALIZADA);
-        }
 
         log.info("Cita id: {} actualizada exitosamente.", idCita);
         return citaMapper.entidadAResponse(cita, paciente, nuevoMedico);
@@ -158,19 +165,11 @@ public class CitaServiceImpl implements CitaService{
 
         citaRepository.save(cita);
 
-        if (cita.getEstadoCita() == EstadoCita.PENDIENTE) {
-            boolean tieneOtrasCitasActivas = citaRepository.existsByIdMedicoAndEstadoCitaInAndEstadoRegistro(
-                    cita.getIdMedico(),
-                    List.of(EstadoCita.PENDIENTE, EstadoCita.CONFIRMADA, EstadoCita.EN_CURSO),
-                    EstadoRegistro.ACTIVO
-            );
+        if (cita.getEstadoCita() == EstadoCita.PENDIENTE
+                && !tieneCitasActivas(cita.getIdMedico(), ESTADOS_PERMITIDOS_PCEC, EstadoRegistro.ACTIVO)) {
 
-            if (!tieneOtrasCitasActivas) {
-                medicoClient.actualizarDisponibilidadMedico(cita.getIdMedico(), 1L);
-                log.info("Médico id: {} liberado a DISPONIBLE tras eliminación de cita pendiente.", cita.getIdMedico());
-            } else
-                log.info("Médico id: {} conserva estado NO_DISPONIBLE porque aún tiene otras citas activas.", cita.getIdMedico());
-
+            medicoClient.actualizarDisponibilidadMedico(cita.getIdMedico(), ID_DISPONIBILIDAD_DISPONIBLE);
+            log.info("Médico id: {} liberado a DISPONIBLE tras eliminación de cita pendiente.", cita.getIdMedico());
         }
 
         log.info("Cita con id {} ha sido marcada como eliminado", id);
@@ -180,14 +179,14 @@ public class CitaServiceImpl implements CitaService{
     public boolean tieneCitasActivasMedico(Long idMedico) {
         return citaRepository.existsByIdMedicoAndEstadoCitaIn(
                 idMedico,
-                List.of(EstadoCita.CONFIRMADA, EstadoCita.EN_CURSO)
+                ESTADOS_PERMITIDOS_CEC
         );
     }
 
     @Override
     public boolean verificarDisponibilidadMedico(Long idMedico) {
         boolean estadoMedico = citaRepository.existsByIdMedicoAndEstadoCitaIn(
-                idMedico, List.of(EstadoCita.CONFIRMADA, EstadoCita.EN_CURSO));
+                idMedico, ESTADOS_PERMITIDOS_CEC);
         return !estadoMedico;
     }
 
@@ -228,7 +227,7 @@ public class CitaServiceImpl implements CitaService{
     public boolean tieneCitasActivasPaciente(Long idPaciente) {
         return citaRepository.existsByIdPacienteAndEstadoCitaIn(
                 idPaciente,
-                List.of(EstadoCita.CONFIRMADA, EstadoCita.EN_CURSO)
+                ESTADOS_PERMITIDOS_CEC
         );
     }
 
@@ -239,21 +238,26 @@ public class CitaServiceImpl implements CitaService{
         }
     }
 
+    private Long obtenerIdDisponibilidadResultante(EstadoCita estadoCita) {
+        if (estadoCita == null) {
+            throw new IllegalArgumentException("El estado de la cita no puede ser nulo");
+        }
+
+        return switch (estadoCita) {
+            case PENDIENTE, CONFIRMADA -> ID_DISPONIBILIDAD_AGENDADO;
+            case EN_CURSO              -> ID_DISPONIBILIDAD_EN_CONSULTA;
+            case FINALIZADA, CANCELADA -> ID_DISPONIBILIDAD_DISPONIBLE;
+        };
+    }
+
     private void sincronizarDisponibilidadMedico(Long idCita, Long idMedico, EstadoCita estadoCita) {
-        Long idDisponibilidad = estadoCita.obtenerIdDisponibilidadResultante();
+        Long idDisponibilidad = obtenerIdDisponibilidadResultante(estadoCita);
 
-        if (idDisponibilidad.equals(1L)) {
-            boolean tieneOtrasCitasActivas = citaRepository.existsByIdMedicoAndEstadoCitaInAndEstadoRegistroAndIdNot(
-                    idMedico,
-                    List.of(EstadoCita.PENDIENTE, EstadoCita.CONFIRMADA, EstadoCita.EN_CURSO),
-                    EstadoRegistro.ACTIVO,
-                    idCita
-            );
+        if (ID_DISPONIBILIDAD_DISPONIBLE.equals(idDisponibilidad)
+                && tieneOtrasCitasActivas(idMedico, ESTADOS_PERMITIDOS_PCEC, EstadoRegistro.ACTIVO, idCita)) {
 
-            if (tieneOtrasCitasActivas) {
-                log.info("El médico id: {} aún cuenta con otras citas activas. Permanecerá NO_DISPONIBLE.", idMedico);
-                return;
-            }
+            log.info("El médico id: {} aún cuenta con otras citas activas. Permanecerá NO_DISPONIBLE.", idMedico);
+            return;
         }
 
         log.info("Sincronizando disponibilidad del médico id: {} a disponibilidad id: {} por cita en estado: {}",
@@ -267,7 +271,7 @@ public class CitaServiceImpl implements CitaService{
     private void validarPacienteDisponible(Long idPaciente) {
         boolean tieneCitasActivas = citaRepository.existsByIdPacienteAndEstadoCitaInAndEstadoRegistro(
                 idPaciente,
-                List.of(EstadoCita.PENDIENTE, EstadoCita.CONFIRMADA, EstadoCita.EN_CURSO),
+                ESTADOS_PERMITIDOS_PCEC,
                 EstadoRegistro.ACTIVO
         );
 
@@ -280,7 +284,7 @@ public class CitaServiceImpl implements CitaService{
     private void validarPacienteDisponibleParaActualizar(Long idPaciente, Long idCitaActual) {
         boolean tieneOtrasCitasActivas = citaRepository.existsByIdPacienteAndEstadoCitaInAndEstadoRegistroAndIdNot(
                 idPaciente,
-                List.of(EstadoCita.PENDIENTE, EstadoCita.CONFIRMADA, EstadoCita.EN_CURSO),
+                ESTADOS_PERMITIDOS_PCEC,
                 EstadoRegistro.ACTIVO,
                 idCitaActual
         );
@@ -291,6 +295,28 @@ public class CitaServiceImpl implements CitaService{
         }
     }
 
+
+    private boolean tieneCitasActivas(Long idMedico,
+                                      List<EstadoCita> estados,
+                                      EstadoRegistro estadoRegistro) {
+        return citaRepository.existsByIdMedicoAndEstadoCitaInAndEstadoRegistro(
+                idMedico,
+                estados,
+                estadoRegistro
+        );
+    }
+
+    private boolean tieneOtrasCitasActivas(Long idMedico,
+                                           List<EstadoCita> estados,
+                                           EstadoRegistro estadoRegistro,
+                                           Long idCita) {
+        return citaRepository.existsByIdMedicoAndEstadoCitaInAndEstadoRegistroAndIdNot(
+                idMedico,
+                estados,
+                estadoRegistro,
+                idCita
+        );
+    }
 
 
 
